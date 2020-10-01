@@ -1,8 +1,7 @@
-import socket
+
 import time
-import binascii
 import pycom
-from network import LoRa
+import pybytes
 from CayenneLPP import CayenneLPP
 
 from pysense import Pysense
@@ -19,40 +18,7 @@ li = LIS2HH12(py)
 # Disable heartbeat LED
 pycom.heartbeat(False)
 
-# Initialize LoRa in LORAWAN mode.
-lora = LoRa(mode=LoRa.LORAWAN)
-
-# create an OTAA authentication parameters
-app_eui = binascii.unhexlify('0101010101010101')
-app_key = binascii.unhexlify('11B0282A189B75B0B4D2D8C7FA38548B')
-
-print("DevEUI: %s" % (binascii.hexlify(lora.mac())))
-print("AppEUI: %s" % (binascii.hexlify(app_eui)))
-print("AppKey: %s" % (binascii.hexlify(app_key)))
-
-
-# join a network using OTAA (Over the Air Activation)
-lora.join(activation=LoRa.OTAA, auth=(app_eui, app_key), timeout=0)
-
-# wait until the module has joined the network
-while not lora.has_joined():
-    pycom.rgbled(0x140000)
-    time.sleep(2.5)
-    pycom.rgbled(0x000000)
-    time.sleep(1.0)
-    print('Not yet joined...')
-
-print('OTAA joined')
-pycom.rgbled(0x001400)
-
-# create a LoRa socket
-s = socket.socket(socket.AF_LORA, socket.SOCK_RAW)
-
-# set the LoRaWAN data rate
-s.setsockopt(socket.SOL_LORA, socket.SO_DR, 5)
-
 while True:
-    s.setblocking(True)
     pycom.rgbled(0x000014)
     lpp = CayenneLPP()
 
@@ -74,21 +40,18 @@ while True:
     lpp.add_relative_humidity(1, si.humidity())
     lpp.add_temperature(1, si.temperature())
 
-    mpPress = MPL3115A2(py,mode=PRESSURE)
+    mpPress = MPL3115A2(py, mode=PRESSURE)
     print('\n\n** Barometric Pressure Sensor with Altimeter (MPL3115A2)')
     print('Pressure (hPa)', mpPress.pressure()/100)
     lpp.add_barometric_pressure(1, mpPress.pressure()/100)
 
-    mpAlt = MPL3115A2(py,mode=ALTITUDE)
+    mpAlt = MPL3115A2(py, mode=ALTITUDE)
     print('Altitude', mpAlt.altitude())
     print('Temperature', mpAlt.temperature())
     lpp.add_gps(1, 0, 0, mpAlt.altitude())
     lpp.add_temperature(2, mpAlt.temperature())
 
     print('Sending data (uplink)...')
-    s.send(bytes(lpp.get_buffer()))
-    s.setblocking(False)
-    data = s.recv(64)
-    print('Received data (downlink)', data)
+    pybytes.send_signal(1, lpp.get_buffer())
     pycom.rgbled(0x001400)
     time.sleep(30)
