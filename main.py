@@ -39,6 +39,7 @@ while True:
     pybytes.send_signal(3, mpAlt.altitude())
     pybytes.send_signal(4, mpPress.pressure()/100)
     pybytes.send_signal(5, lt.light())
+    
 
     pycom.rgbled(0x001400)
     time.sleep(30)
